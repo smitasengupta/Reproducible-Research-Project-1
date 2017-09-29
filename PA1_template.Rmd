@@ -1,0 +1,68 @@
+## Reading the data
+data <- read.csv("activity.csv", header = TRUE, sep = ",", na.strings = "NA")
+summary(data)
+str(data)
+head(data)
+data$date <- as.Date(data$date, format = "%Y-%m-%d")
+data$interval <- factor(data$interval)
+
+
+##mean total number of steps taken per day
+NA_index <- is.na(as.character(data$steps))
+data_no_NA <- data[!NA_index,]
+head(data_no_NA)
+steps_each_day <- aggregate(steps ~ date, data = data_no_NA, sum)
+colnames(steps_each_day) <- c("date", "steps")
+hist(as.numeric(steps_each_day$steps), breaks = 20, col = "grey", xlab = "Number of Steps", main= "Histogram of the total number of steps taken each day")
+
+mean(steps_each_day$steps)
+median(steps_each_day$steps)
+
+
+##average daily activity pattern
+steps_per_interval <- aggregate(data_no_NA$steps, by=list(interval=data_no_NA$interval), FUN=mean)
+
+colnames(steps_per_interval) <- c("interval", "average_steps")
+
+
+plot(as.integer(levels(steps_per_interval$interval)), steps_per_interval$average_steps, type="l",
+     xlab = "Interval", ylab = "Average Number of Steps", main = "Average Daily Activity Pattern",  col ="grey")
+max_steps <- max(steps_per_interval$average_steps)
+max_steps
+intervale_max_steps<-steps_per_interval[which.max(steps_per_interval$average_steps),]$interval
+intervale_max_steps
+
+##Inputing missing values
+sum(is.na(as.character(data$steps)))
+sum(is.na(as.character(data$date)))
+sum(is.na(as.character(data$interval)))
+NA_index <- which(is.na(as.character(data$steps)))
+complete_data <- data
+complete_data[NA_index, ]$steps<-unlist(lapply(NA_index, FUN=function(NA_index){
+  steps_per_interval[data[NA_index,]$interval==steps_per_interval$interval,]$average_steps
+}))
+summary(complete_data)
+str(complete_data)
+steps_each_day_complete <- aggregate(steps ~ date, data = complete_data, sum)
+colnames(steps_each_day_complete) <- c("date", "steps")
+hist(as.numeric(steps_each_day_complete$steps), breaks = 20, col = "grey", xlab = "Number of Steps", main= "Histogram of the total number of steps taken each day")
+mean(steps_each_day_complete$steps)
+median(steps_each_day_complete$steps)
+
+
+##differences in activity patterns
+complete_data$day <- as.factor(weekdays(complete_data$date))
+complete_data$is_weekday <- ifelse(!(complete_data$day %in% c("Saturday","Sunday")), TRUE, FALSE) 
+weekdays_data <- complete_data[complete_data$is_weekday,]
+steps_per_interval_weekdays <- aggregate(weekdays_data$steps, by=list(interval=weekdays_data$interval), FUN=mean)
+weekends_data <- complete_data[!complete_data$is_weekday,]
+steps_per_interval_weekends <- aggregate(weekends_data$steps, by=list(interval=weekends_data$interval), FUN=mean)
+colnames(steps_per_interval_weekdays) <- c("interval", "average_steps")
+colnames(steps_per_interval_weekends) <- c("interval", "average_steps")
+steps_per_interval_weekdays$day <- "Weekday"
+steps_per_interval_weekends$day <- "Weekend"
+week_data <- rbind(steps_per_interval_weekends, steps_per_interval_weekdays)
+week_data$day <- as.factor(week_data$day)
+library(lattice)
+xyplot(average_steps ~  interval | day, data = week_data, layout = c(1,2), type ="l", ylab="Number of Steps")
+
